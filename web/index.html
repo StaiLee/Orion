@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Orion — SOC cosmos</title>
+  <link rel="stylesheet" href="./styles.css" />
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+    }
+  }
+  </script>
+</head>
+<body>
+  <canvas id="scene"></canvas>
+  <div id="flash"></div>
+  <div id="toasts"></div>
+
+  <div id="boot">
+    <div class="boot-inner">
+      <div class="boot-logo">✦ ORION</div>
+      <div class="boot-sub">SECURITY OPERATIONS CENTER</div>
+      <div class="boot-bar"><i></i></div>
+      <div class="boot-status">Initialisation du cosmos…</div>
+    </div>
+  </div>
+
+  <header class="topbar">
+    <div class="brand"><span class="logo">✦</span> ORION <small>SOC&nbsp;cosmos</small></div>
+    <nav id="views">
+      <button data-view="cosmos" class="active">◉ Cosmos</button>
+      <button data-view="matrix">▦ Matrice ATT&CK</button>
+      <button data-view="incidents">⚠ Incidents</button>
+    </nav>
+    <div class="kpis">
+      <div class="kpi"><span id="kpi-supervised">0</span><label>corps supervisés</label></div>
+      <div class="kpi"><span id="kpi-threats">0</span><label>menaces actives</label></div>
+      <div class="kpi"><span id="kpi-compromised">0</span><label>hôtes compromis</label></div>
+      <div class="kpi"><span id="kpi-incidents">0</span><label>incidents</label></div>
+      <div class="kpi"><span id="kpi-rate">0</span><label>évén./min</label></div>
+    </div>
+    <div class="tools">
+      <span id="clock" class="clock">--:--:-- UTC</span>
+      <button id="sound" aria-pressed="false" title="Activer le son">🔊 Son</button>
+      <button id="analyst" aria-pressed="false">⊕ Analyste</button>
+      <span id="conn" class="off">○ HORS LIGNE</span>
+    </div>
+  </header>
+
+  <aside class="left">
+    <div class="panel-h">Flux d'alertes <span class="hint">live</span></div>
+    <div id="filters" class="filters"></div>
+    <div id="feed" class="feed"></div>
+    <div class="legend">
+      <span><i class="dot d-info"></i>étoile</span>
+      <span><i class="dot d-low"></i>météore</span>
+      <span><i class="dot d-medium"></i>comète</span>
+      <span><i class="dot d-high"></i>astéroïde</span>
+      <span><i class="dot d-critical"></i>supernova</span>
+    </div>
+  </aside>
+
+  <aside class="right">
+    <div id="rtabs" class="rtabs">
+      <button data-rtab="analyse" class="active" onclick="document.querySelectorAll('#rtabs button').forEach(b=>b.classList.toggle('active',b.dataset.rtab==='analyse'));document.getElementById('rt-analyse').hidden=false;document.getElementById('rt-detail').hidden=true;">Analyse</button>
+      <button data-rtab="detail" onclick="document.querySelectorAll('#rtabs button').forEach(b=>b.classList.toggle('active',b.dataset.rtab==='detail'));document.getElementById('rt-analyse').hidden=true;document.getElementById('rt-detail').hidden=false;">Triage</button>
+    </div>
+    <div id="rt-analyse" class="rpane"></div>
+    <div id="rt-detail" class="rpane" hidden>
+      <div class="panel-h"><span id="detail-title">Détail</span></div>
+      <div id="detail-body" class="detail-body"><p class="muted">Clique un corps céleste, une alerte ou un incident.</p></div>
+    </div>
+  </aside>
+
+  <footer class="killchain">
+    <div id="kc-title" class="kc-title muted">En attente d'incident…</div>
+    <div id="kc-strip" class="kc-strip"></div>
+  </footer>
+
+  <!-- Vues plein-centre -->
+  <section id="view-matrix" class="overlay-view">
+    <div class="ov-h">Matrice MITRE ATT&CK <small>— techniques observées en direct</small></div>
+    <div id="matrix-grid" class="matrix-grid"></div>
+  </section>
+
+  <section id="view-incidents" class="overlay-view">
+    <div class="ov-h">Incidents corrélés</div>
+    <div class="inc-wrap">
+      <table class="inc-table">
+        <thead><tr><th>Incident</th><th>Cible</th><th>Sévérité</th><th>Progression kill chain</th><th>Statut</th><th>Dernier signal</th></tr></thead>
+        <tbody id="inc-body"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- Modal de détail d'incident -->
+  <div id="modal" class="modal">
+    <div class="modal-back"></div>
+    <div class="modal-card">
+      <div class="modal-h"><span id="modal-title">Incident</span>
+        <button id="modal-close">✕</button></div>
+      <div id="modal-body" class="modal-body"></div>
+    </div>
+  </div>
+
+  <!-- Command palette (Ctrl/Cmd+K) -->
+  <div id="palette" class="palette">
+    <div class="palette-back"></div>
+    <div class="palette-card">
+      <input id="palette-input" type="text" placeholder="Rechercher un actif, une vue, une commande…  (Échap pour fermer)" autocomplete="off" />
+      <div id="palette-results" class="palette-results"></div>
+    </div>
+  </div>
+
+  <script type="module" src="./main.js"></script>
+</body>
+</html>

@@ -1,6 +1,7 @@
 // Outil de dev : pilote Chrome, attend le rendu WebGL, capture des frames.
 // Usage : node tools/shoot.mjs [burst]   (le serveur doit tourner sur :3000)
 import puppeteer from 'puppeteer-core';
+import { login } from './_login.mjs';
 
 const CHROME = process.env.CHROME_PATH
   || 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
@@ -23,7 +24,7 @@ await page.setViewport({ width: 1600, height: 900, deviceScaleFactor: 1 });
 const logs = [];
 page.on('pageerror', (e) => logs.push(`[pageerror] ${e.message}`));
 
-await page.goto(URL, { waitUntil: 'networkidle2', timeout: 30000 });
+await login(page, URL);
 
 if (BURST) {
   // kill chain lancée à ~4s ; étapes ~4,7.2,10.4,13.8,17.2,20.8s → on rafale dessus

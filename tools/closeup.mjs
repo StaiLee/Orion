@@ -1,5 +1,6 @@
 // Gros plan : rapproche la caméra pour inspecter le détail de surface des planètes.
 import puppeteer from 'puppeteer-core';
+import { login } from './_login.mjs';
 const CHROME = process.env.CHROME_PATH || 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const browser = await puppeteer.launch({
@@ -9,7 +10,7 @@ const browser = await puppeteer.launch({
 });
 const page = await browser.newPage();
 await page.setViewport({ width: 1600, height: 900 });
-await page.goto('http://localhost:3000', { waitUntil: 'networkidle2', timeout: 30000 });
+await login(page);
 await sleep(5000);
 await page.evaluate(() => {
   const o = window.__orion; if (!o) return;

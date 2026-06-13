@@ -36,6 +36,7 @@ Chaque actif est un corps céleste · chaque flux une trajectoire · chaque mena
 | 🪐 **Conscience de situation incomparable** | Un cosmos 3D où l'état de tout ton réseau se lit d'un coup d'œil. Une planète qui rougit = un hôte compromis. Une supernova = un incident critique. |
 | 🎯 **Un vrai SOC, pas un économiseur d'écran** | Feed d'alertes, triage, corrélation d'incidents, matrice ATT&CK live, analyse, threat intel — chaque pixel porte une information opérationnelle. |
 | 🔌 **Branchable sur n'importe quelle infra** | Pointe ton SIEM / IDS / EDR vers une URL. Auto-détection du format. Zéro code côté client. |
+| 🔐 **Prêt pour l'entreprise** | Authentification, **RBAC** (admin/analyste/observateur) et **multi-tenant** avec isolation des données — vendable à plusieurs clients. |
 | ⚡ **Déploiement en une commande** | `node server.js`. Zéro dépendance runtime, un seul fichier de base de données. |
 
 <br/>
@@ -51,6 +52,8 @@ Chaque actif est un corps céleste · chaque flux une trajectoire · chaque mena
 | <img src="docs/screenshots/incident-console.png" width="100%"/> | <img src="docs/screenshots/threat-intel.png" width="100%"/> |
 | **Matrice MITRE ATT&CK (live)** | **Incidents corrélés** |
 | <img src="docs/screenshots/matrix.png" width="100%"/> | <img src="docs/screenshots/incidents.png" width="100%"/> |
+| **Connexion** | |
+| <img src="docs/screenshots/login.png" width="100%"/> | |
 
 </div>
 
@@ -80,6 +83,12 @@ Chaque actif est un corps céleste · chaque flux une trajectoire · chaque mena
 - **Confinement SOAR** : isole l'hôte cible → il passe hors-ligne dans le cosmos
 - Statuts **persistés** et **synchronisés en direct** entre tous les postes
 
+### 🔐 Sécurité & entreprise
+- **Authentification** par session (cookie HttpOnly, mots de passe hachés en scrypt)
+- **RBAC** : `admin` · `analyst` · `viewer` — actions et confinement réservés aux analystes, gestion des comptes aux admins
+- **Multi-tenant** : événements, incidents et flux SSE **isolés par organisation**
+- Désactivable pour démo : `ORION_AUTH=off node server.js`
+
 ### 📦 Plateforme
 - **Persistance SQLite** (historique, enquête, conformité) + backfill au chargement
 - **API REST** complète + **ingestion universelle** `POST /ingest`
@@ -93,8 +102,15 @@ Chaque actif est un corps céleste · chaque flux une trajectoire · chaque mena
 node server.js
 ```
 
-Puis ouvre **http://localhost:3000**. Aucune dépendance à installer (Node 18+, idéalement 22+ pour SQLite natif).
+Puis ouvre **http://localhost:3000**. Aucune dépendance à installer (Node 18+, **22+ requis** pour SQLite natif).
 Le simulateur démarre tout seul : trafic de fond, kill chains complètes, découverte d'actifs.
+
+**Connexion (démo)** — mot de passe `orion` : `admin` · `analyste` · `observateur`.
+
+```bash
+ORION_AUTH=off node server.js                  # désactiver l'auth (démo visuelle)
+ORION_SEED_PASSWORD=… ORION_API_KEY=… node server.js   # durcir en production
+```
 
 > 💡 Dans l'interface : laisse l'intro caméra plonger, active le 🔊 son, tape `Ctrl+K`, ouvre un incident et exporte son rapport.
 
@@ -120,7 +136,8 @@ rendu sans toucher au reste — c'est ce qui rend Orion modulaire et vendable.
 | Adapter source réelle (Suricata) | `sim/adapters/suricata.js`, `sim/samples/eve.sample.jsonl` |
 | Persistance (SQLite natif) | `sim/db.js` |
 | Threat intelligence (géo + IOC) | `sim/threatintel.js` |
-| Serveur (statique + SSE + API + ingestion) | `server.js` |
+| Serveur (SSE + API + ingestion + auth/RBAC/multi-tenant) | `server.js` |
+| Page de connexion | `web/login.html` |
 | Rendu cosmos (Three.js, bloom/vignette, shaders) | `web/cosmos.js`, `web/sound.js` |
 | HUD SOC (vues, matrice, incidents, analyse, palette) | `web/hud.js`, `web/index.html`, `web/styles.css` |
 | État + analytics | `web/store.js` |
@@ -178,7 +195,8 @@ Ajouter une source (Zeek, NetFlow, Wazuh…) = écrire un normalizer comme `sim/
 - [x] Threat intelligence (géo + IOC)
 - [x] Workflow d'incident + réponse SOAR (confinement)
 - [x] Topologie dynamique (découverte d'actifs)
-- [ ] RBAC · multi-tenant · authentification SSO
+- [x] Authentification · RBAC · multi-tenant
+- [ ] SSO (OIDC/SAML) · gestion fine des comptes en UI
 - [ ] Flux IOC / GeoIP réels (MaxMind, MISP, AbuseIPDB)
 - [ ] Champs analyste avancés (identité, process, SLA)
 - [ ] Playbooks SOAR étendus + intégration ticketing

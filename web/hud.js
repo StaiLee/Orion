@@ -42,6 +42,8 @@ export class Hud {
     this.renderer.onSupernova = () => this._flash();
   }
 
+  setUser(user) { this.user = user; this.canAct = user && (user.role === 'analyst' || user.role === 'admin'); }
+
   setConnected(on) {
     const el = this.$('conn');
     el.textContent = on ? '● OPÉRATIONNEL' : '○ HORS LIGNE';
@@ -351,17 +353,17 @@ export class Hud {
           <div class="timeline">${timeline || '<div class="muted">—</div>'}</div>
           <div class="raw-h" style="margin-top:16px">Notes d'investigation</div>
           <div class="notes">${notes || '<div class="muted">Aucune note.</div>'}</div>
-          <div class="note-add"><input id="note-input" placeholder="Ajouter une note…" /><button id="note-btn">Ajouter</button></div>
+          ${this.canAct ? '<div class="note-add"><input id="note-input" placeholder="Ajouter une note…" /><button id="note-btn">Ajouter</button></div>' : ''}
         </div>
         <div>
           <div class="raw-h">Réponse & triage</div>
-          <div class="actions">
+          ${this.canAct ? `<div class="actions">
             <button class="act" data-act="ack">✓ Prendre en charge</button>
             <button class="act danger" data-act="contain">⛔ Isoler l'hôte cible</button>
             <button class="act" data-act="resolve">✔ Résoudre</button>
             <button class="act" data-act="false_positive">⊘ Faux positif</button>
             ${(st === 'resolved' || st === 'false_positive') ? '<button class="act" data-act="reopen">↺ Rouvrir</button>' : ''}
-          </div>
+          </div>` : '<div class="muted" style="font-size:11px">Lecture seule — rôle observateur.</div>'}
           <div class="raw-h" style="margin-top:16px">Actifs affectés (${inc.assets.size ?? (inc.assets.length || 0)})</div>
           <div class="assets">${assets || '<div class="muted">—</div>'}</div>
           <div class="raw-h" style="margin-top:16px">Sévérité max</div>
@@ -380,7 +382,8 @@ export class Hud {
     for (const el of this.$('modal-body').querySelectorAll('[data-act]')) {
       el.addEventListener('click', () => this._incAction(id, el.dataset.act));
     }
-    this.$('note-btn').addEventListener('click', () => {
+    const noteBtn = this.$('note-btn');
+    if (noteBtn) noteBtn.addEventListener('click', () => {
       const v = this.$('note-input').value.trim();
       if (v) this._incAction(id, 'note', v);
     });

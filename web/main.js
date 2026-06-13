@@ -1,81 +1,67 @@
-// Orion — point d'entrée. Câble : SSE → store → (renderer + HUD + son).
-// C'est le seul endroit qui connaît à la fois le réseau, l'état, le rendu et le son.
+// Orion — point d'entrée. Vérifie la session, puis câble SSE → store → (renderer + HUD + son).
 
 import { OrionStore } from './store.js';
 import { ThreeRenderer } from './cosmos.js';
 import { Hud } from './hud.js';
 import { SoundEngine } from './sound.js';
 
-const store = new OrionStore();
-const renderer = new ThreeRenderer(document.getElementById('scene'));
-renderer.mount();
-const hud = new Hud(store, renderer);
-const sound = new SoundEngine();
-window.__orion = { store, renderer, hud, sound }; // introspection / outillage de dev
+init();
 
-// Toggle son (le clic = geste utilisateur requis pour démarrer l'AudioContext)
-const soundBtn = document.getElementById('sound');
-soundBtn.addEventListener('click', () => {
-  const on = soundBtn.getAttribute('aria-pressed') !== 'true';
-  soundBtn.setAttribute('aria-pressed', String(on));
-  soundBtn.classList.toggle('active', on);
-  on ? sound.enable() : sound.disable();
-});
+async function init() {
+  // Garde d'accès : pas de session → page de connexion.
+  let me;
+  try { const r = await fetch('/api/me'); if (!r.ok) return redirectLogin(); me = await r.json(); }
+  catch { return redirectLogin(); }
 
-// La supernova déclenche aussi un son (en plus du flash câblé par le HUD).
-const _prevSupernova = renderer.onSupernova;
-renderer.onSupernova = () => { if (_prevSupernova) _prevSupernova(); sound.supernova(); };
+  const store = new OrionStore();
+  const renderer = new ThreeRenderer(document.getElementById('scene'));
+  renderer.mount();
+  const hud = new Hud(store, renderer);
+  const sound = new SoundEngine();
+  hud.setUser(me.user);
+  window.__orion = { store, renderer, hud, sound, user: me.user };
 
-// Le store notifie : on relaie vers le rendu, le HUD et le son.
-store.subscribe((kind, payload) => {
-  switch (kind) {
-    case 'snapshot':
-      renderer.buildFromSnapshot(payload);
-      hud.onSnapshot();
-      hideBoot();
-      break;
-    case 'event':
-      renderer.spawnEvent(payload);
-      hud.onEvent(payload);
-      if (payload.severity === 'high' || payload.severity === 'critical') sound.alert(payload.severity);
-      break;
-    case 'body_status':
-      renderer.setBodyStatus(payload.id, payload.status);
-      hud.onBodyStatus(payload);
-      break;
-    case 'body_add':
-      renderer.addBodyDynamic(payload);
-      hud.onBodyAdd(payload);
-      break;
-    case 'flux':
-      renderer.drawFlux(payload);
-      break;
-    case 'history':
-      hud.onHistory(payload); // peuple le HUD sans rejouer les animations cosmos
-      break;
-    case 'incidents_meta':
-      hud.onIncidentsMeta();
-      break;
-    case 'incident_update':
-      hud.onIncidentUpdate(payload);
-      break;
+  // Barre : identité + déconnexion
+  const chip = document.getElementById('user-chip');
+  if (chip) chip.textContent = `${me.user.username} · ${roleLabel(me.user.role)}`;
+  const logout = document.getElementById('logout');
+  if (logout) {
+    logout.style.display = me.auth ? '' : 'none';
+    logout.addEventListener('click', async () => { await fetch('/api/logout', { method: 'POST' }); redirectLogin(); });
   }
-});
 
-// Séquence de boot : disparaît dès que le cosmos est bâti (min ~1.6 s pour l'effet).
-const _bootStart = Date.now();
-let _bootDone = false;
-function hideBoot() {
-  if (_bootDone) return; _bootDone = true;
-  const wait = Math.max(0, 1600 - (Date.now() - _bootStart));
-  setTimeout(() => {
-    const b = document.getElementById('boot');
-    if (b) { b.classList.add('hide'); setTimeout(() => b.remove(), 900); }
-  }, wait);
+  // Toggle son
+  const soundBtn = document.getElementById('sound');
+  soundBtn.addEventListener('click', () => {
+    const on = soundBtn.getAttribute('aria-pressed') !== 'true';
+    soundBtn.setAttribute('aria-pressed', String(on));
+    soundBtn.classList.toggle('active', on);
+    on ? sound.enable() : sound.disable();
+  });
+
+  const _prevSupernova = renderer.onSupernova;
+  renderer.onSupernova = () => { if (_prevSupernova) _prevSupernova(); sound.supernova(); };
+
+  store.subscribe((kind, payload) => {
+    switch (kind) {
+      case 'snapshot': renderer.buildFromSnapshot(payload); hud.onSnapshot(); hideBoot(); break;
+      case 'event':
+        renderer.spawnEvent(payload); hud.onEvent(payload);
+        if (payload.severity === 'high' || payload.severity === 'critical') sound.alert(payload.severity);
+        break;
+      case 'body_status': renderer.setBodyStatus(payload.id, payload.status); hud.onBodyStatus(payload); break;
+      case 'body_add': renderer.addBodyDynamic(payload); hud.onBodyAdd(payload); break;
+      case 'flux': renderer.drawFlux(payload); break;
+      case 'history': hud.onHistory(payload); break;
+      case 'incidents_meta': hud.onIncidentsMeta(); break;
+      case 'incident_update': hud.onIncidentUpdate(payload); break;
+    }
+  });
+
+  connect(store, hud);
 }
 
-// Abonnement SSE (le composant ne connaît que le flux d'Events Orion).
-function connect() {
+function connect(store, hud) {
   const es = new EventSource('/stream');
   es.addEventListener('open', () => hud.setConnected(true));
   es.addEventListener('error', () => hud.setConnected(false));
@@ -88,4 +74,14 @@ function connect() {
   es.addEventListener('body_add', (e) => store.applyBodyAdd(JSON.parse(e.data)));
   es.addEventListener('flux', (e) => store.applyFlux(JSON.parse(e.data)));
 }
-connect();
+
+function redirectLogin() { location.href = '/login.html'; }
+function roleLabel(r) { return { admin: 'Admin', analyst: 'Analyste', viewer: 'Observateur' }[r] || r; }
+
+const _bootStart = Date.now();
+let _bootDone = false;
+function hideBoot() {
+  if (_bootDone) return; _bootDone = true;
+  const wait = Math.max(0, 1600 - (Date.now() - _bootStart));
+  setTimeout(() => { const b = document.getElementById('boot'); if (b) { b.classList.add('hide'); setTimeout(() => b.remove(), 900); } }, wait);
+}

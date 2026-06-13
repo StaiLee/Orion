@@ -48,6 +48,9 @@ body { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; color: 
 .big-btn.ghost:hover { background: rgba(138,180,255,0.1); }
 #conn { font-size: 11px; letter-spacing: 1px; white-space: nowrap; }
 #conn.on { color: var(--medium); } #conn.off { color: var(--muted); }
+.user-chip { font-size: 11px; color: var(--accent); background: rgba(138,180,255,0.12); padding: 5px 9px; border-radius: 6px; letter-spacing: 0.5px; white-space: nowrap; }
+#logout { background: transparent; color: var(--muted); border: 1px solid var(--border); padding: 6px 9px; border-radius: 6px; font-family: inherit; font-size: 13px; cursor: pointer; }
+#logout:hover { color: var(--critical); border-color: var(--critical); }
 
 /* ---------- Panneaux latéraux ---------- */
 .left, .right { position: fixed; top: 72px; bottom: 92px; width: 320px; z-index: 20;

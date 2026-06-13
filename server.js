@@ -1,9 +1,6 @@
-// Orion — serveur (SQLite natif, sinon zéro dépendance).
-// Sert le frontend + diffuse les Events Orion via SSE + persiste + API REST + ingestion.
-// Déploiement : `node server.js` puis http://localhost:3000
-//
-// SSE est choisi volontairement (vs WebSocket) : flux serveur→client unidirectionnel,
-// natif navigateur (EventSource), aucune dépendance, aucun build.
+// Orion — serveur (SQLite natif + crypto natif, sinon zéro dépendance).
+// Frontend + SSE + persistance + API REST + ingestion + AUTH/RBAC + multi-tenant.
+// Déploiement : `node server.js` (auth activée). `ORION_AUTH=off node server.js` pour désactiver.
 
 import http from 'node:http';
 import { readFile } from 'node:fs/promises';
@@ -18,7 +15,10 @@ import { enrich } from './sim/threatintel.js';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const WEB = join(__dirname, 'web');
 const PORT = process.env.PORT || 3000;
-const API_KEY = process.env.ORION_API_KEY || null; // si défini, /ingest l'exige
+const API_KEY = process.env.ORION_API_KEY || null;
+const API_TENANT = process.env.ORION_API_TENANT || 'orion-demo';
+const AUTH = process.env.ORION_AUTH !== 'off';
+const SIM_TENANT = 'orion-demo';
 
 const MIME = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8',
@@ -28,47 +28,58 @@ const MIME = {
 
 const db = new OrionDB(process.env.ORION_DB || join(__dirname, 'orion.db'));
 
-/** @type {Set<http.ServerResponse>} */
+/** clients SSE : { res, tenant } */
 const clients = new Set();
 
-function broadcast(type, data) {
+function broadcast(type, data, tenant) {
   const payload = `event: ${type}\ndata: ${JSON.stringify(data)}\n\n`;
-  for (const res of clients) { try { res.write(payload); } catch { clients.delete(res); } }
+  for (const c of clients) {
+    if (tenant && c.tenant !== tenant) continue;       // isolation multi-tenant
+    try { c.res.write(payload); } catch { clients.delete(c); }
+  }
 }
 
-// Tout passe par emit() : on ENRICHIT, on PERSISTE, puis on diffuse. Les adapters n'appellent que ça.
-function emit(type, data) {
+// emit() : enrichit, tague le tenant, persiste, puis diffuse (scopé au tenant).
+function emit(type, data, tenant = SIM_TENANT) {
   if (type === 'event') {
-    enrich(data);                                  // threat intel : géo + réputation IOC
+    data.tenant = tenant;
+    enrich(data);
     try { db.insertEvent(data); } catch (e) { console.error('db:', e.message); }
   }
-  broadcast(type, data);
+  broadcast(type, data, tenant);
 }
 
-// Le simulateur émet des objets Orion ; le serveur persiste + relaie.
 const sim = new Simulator(emit, { seed: 1337 });
 sim.start();
 
-// Adapter source réelle (optionnel) : EVE_FILE=sim/samples/eve.sample.jsonl node server.js
 if (process.env.EVE_FILE) {
-  const replay = new SuricataReplay(emit, { file: process.env.EVE_FILE });
-  replay.load()
-    .then((n) => { replay.start(); console.log(`  ✦ Adapter Suricata actif : ${n} événements EVE`); })
+  const replay = new SuricataReplay((t, d) => emit(t, d, API_TENANT), { file: process.env.EVE_FILE });
+  replay.load().then((n) => { replay.start(); console.log(`  ✦ Adapter Suricata actif : ${n} événements EVE → tenant ${API_TENANT}`); })
     .catch((e) => console.error('  ✦ Adapter Suricata: échec —', e.message));
 }
 
 // ---------- helpers ----------
 function json(res, code, obj) {
-  res.writeHead(code, { 'Content-Type': 'application/json; charset=utf-8', 'Access-Control-Allow-Origin': '*' });
+  res.writeHead(code, { 'Content-Type': 'application/json; charset=utf-8' });
   res.end(JSON.stringify(obj));
 }
-
 function readBody(req) {
   return new Promise((resolve, reject) => {
     let b = ''; req.on('data', (c) => { b += c; if (b.length > 1e6) req.destroy(); });
     req.on('end', () => resolve(b)); req.on('error', reject);
   });
 }
+function parseCookies(req) {
+  const out = {}; const h = req.headers.cookie;
+  if (h) for (const part of h.split(';')) { const i = part.indexOf('='); if (i > 0) out[part.slice(0, i).trim()] = decodeURIComponent(part.slice(i + 1).trim()); }
+  return out;
+}
+// Utilisateur courant (ou identité démo si auth désactivée).
+function currentUser(req) {
+  if (!AUTH) return { username: 'demo', role: 'admin', tenant: SIM_TENANT };
+  return db.getSession(parseCookies(req).orion_session);
+}
+const can = (user, ...roles) => user && roles.includes(user.role);
 
 async function serveStatic(req, res) {
   let urlPath = decodeURIComponent(new URL(req.url, 'http://x').pathname);
@@ -83,55 +94,50 @@ async function serveStatic(req, res) {
 }
 
 // ---------- ingestion universelle ----------
-// POST /ingest : accepte un Event Orion natif OU une ligne Suricata EVE (auto-détecté).
-// Header x-api-key requis si ORION_API_KEY est défini. → n'importe quel outil peut pousser.
 async function handleIngest(req, res) {
-  if (API_KEY && req.headers['x-api-key'] !== API_KEY) return json(res, 401, { error: 'clé API invalide' });
-  let body;
-  try { body = JSON.parse(await readBody(req)); } catch { return json(res, 400, { error: 'JSON invalide' }); }
+  const user = currentUser(req);
+  const keyOk = API_KEY && req.headers['x-api-key'] === API_KEY;
+  if (!keyOk && !can(user, 'admin')) return json(res, 401, { error: 'clé API ou session admin requise' });
+  const tenant = keyOk ? API_TENANT : user.tenant;
+  let body; try { body = JSON.parse(await readBody(req)); } catch { return json(res, 400, { error: 'JSON invalide' }); }
   const items = Array.isArray(body) ? body : [body];
   const ids = [];
   for (const item of items) {
     let out;
-    if (item.event_type) out = normalizeEve(item, item.incident || null); // format Suricata EVE
-    else if (item.severity) out = { type: 'event', data: makeEvent(item) }; // Event Orion natif
-    if (out?.type === 'event') { emit('event', out.data); ids.push(out.data.id); }
-    else if (out?.type === 'flux') emit('flux', out.data);
+    if (item.event_type) out = normalizeEve(item, item.incident || null);
+    else if (item.severity) out = { type: 'event', data: makeEvent(item) };
+    if (out?.type === 'event') { emit('event', out.data, tenant); ids.push(out.data.id); }
+    else if (out?.type === 'flux') emit('flux', out.data, tenant);
   }
   json(res, 202, { ok: true, ingested: ids.length, ids });
 }
 
-// Workflow d'incident : prise en charge, assignation, résolution, faux positif, note, confinement.
-async function handleIncidentAction(req, res, id) {
-  if (API_KEY && req.headers['x-api-key'] !== API_KEY) return json(res, 401, { error: 'clé API invalide' });
+// ---------- workflow d'incident ----------
+async function handleIncidentAction(req, res, id, user) {
+  if (!can(user, 'analyst', 'admin')) return json(res, 403, { error: 'rôle analyste requis' });
   let body; try { body = JSON.parse(await readBody(req)); } catch { return json(res, 400, { error: 'JSON invalide' }); }
-  const { action, value, author } = body;
   let inc = db.getIncident(id);
-  if (!inc) return json(res, 404, { error: 'incident inconnu' });
-
+  if (!inc || inc.tenant !== user.tenant) return json(res, 404, { error: 'incident inconnu' });
+  const { action, value } = body;
+  const who = value || user.username;
   switch (action) {
-    case 'ack': inc = db.updateIncident(id, { status: 'ack', owner: value || author || 'analyste' }); break;
+    case 'ack': inc = db.updateIncident(id, { status: 'ack', owner: who }); break;
     case 'assign': inc = db.updateIncident(id, { owner: value }); break;
     case 'resolve': inc = db.updateIncident(id, { status: 'resolved' }); break;
     case 'false_positive': inc = db.updateIncident(id, { status: 'false_positive' }); break;
     case 'reopen': inc = db.updateIncident(id, { status: 'open' }); break;
-    case 'note': inc = db.addNote(id, { author: author || 'analyste', text: value || '' }); break;
-    case 'contain': {
-      // SOAR-lite : isole l'hôte cible (containment) — visible dans le cosmos + journalisé
-      inc = db.updateIncident(id, { status: 'ack', owner: value || author || 'analyste' });
+    case 'note': inc = db.addNote(id, { author: user.username, text: value || '' }); break;
+    case 'contain':
+      inc = db.updateIncident(id, { status: 'ack', owner: who });
       if (inc.target?.startsWith('host-')) {
-        broadcast('body_status', { id: inc.target, status: 'offline' });
-        emit('event', makeEvent({
-          severity: 'medium', type: 'response', src: 'orion-soar', dst: inc.target,
-          incident: id, title: `Confinement : hôte ${inc.target.replace('host-', '')} isolé du réseau`,
-          raw: { playbook: 'isolate-host', action: 'quarantine', by: value || author || 'analyste' },
-        }));
+        broadcast('body_status', { id: inc.target, status: 'offline' }, inc.tenant);
+        emit('event', makeEvent({ severity: 'medium', type: 'response', src: 'orion-soar', dst: inc.target, incident: id,
+          title: `Confinement : hôte ${inc.target.replace('host-', '')} isolé du réseau`, raw: { playbook: 'isolate-host', by: user.username } }), inc.tenant);
       }
       break;
-    }
     default: return json(res, 400, { error: 'action inconnue' });
   }
-  broadcast('incident_update', { ...inc, action });
+  broadcast('incident_update', { ...inc, action }, inc.tenant);
   json(res, 200, { ok: true, incident: inc });
 }
 
@@ -139,42 +145,79 @@ const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, 'http://x');
   const p = url.pathname;
 
-  // Flux temps réel
+  // --- auth (public) ---
+  if (p === '/api/login' && req.method === 'POST') {
+    let b; try { b = JSON.parse(await readBody(req)); } catch { return json(res, 400, { error: 'JSON invalide' }); }
+    const user = db.verifyLogin(b.username || '', b.password || '');
+    if (!user) return json(res, 401, { error: 'identifiants invalides' });
+    const token = db.createSession(user.id);
+    res.writeHead(200, { 'Content-Type': 'application/json', 'Set-Cookie': `orion_session=${token}; HttpOnly; SameSite=Lax; Path=/; Max-Age=28800` });
+    return res.end(JSON.stringify({ user: { username: user.username, role: user.role, tenant: user.tenant } }));
+  }
+  if (p === '/api/logout' && req.method === 'POST') {
+    db.deleteSession(parseCookies(req).orion_session);
+    res.writeHead(200, { 'Content-Type': 'application/json', 'Set-Cookie': 'orion_session=; HttpOnly; Path=/; Max-Age=0' });
+    return res.end('{"ok":true}');
+  }
+  if (p === '/api/me') {
+    const u = currentUser(req);
+    return u ? json(res, 200, { user: u, auth: AUTH }) : json(res, 401, { error: 'non authentifié' });
+  }
+
+  // --- au-delà : authentification requise (si activée) ---
+  const user = currentUser(req);
+  if (AUTH && !user && (p === '/stream' || p.startsWith('/api/'))) return json(res, 401, { error: 'non authentifié' });
+  const tenant = user ? user.tenant : SIM_TENANT;
+
   if (p === '/stream') {
     res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', Connection: 'keep-alive' });
     res.write('retry: 2000\n\n');
-    res.write(`event: snapshot\ndata: ${JSON.stringify(sim.snapshot())}\n\n`);
-    res.write(`event: history\ndata: ${JSON.stringify(db.recentEvents(150))}\n\n`); // backfill : dashboard non vide
-    res.write(`event: incidents\ndata: ${JSON.stringify(db.listIncidents())}\n\n`); // statuts/propriétaires/notes
-    clients.add(res);
+    // snapshot : topologie sim uniquement pour le tenant démo ; sinon cosmos vierge (se peuple via ingestion)
+    const snap = tenant === SIM_TENANT ? sim.snapshot() : { zones: [], bodies: [], ts: Date.now() };
+    res.write(`event: snapshot\ndata: ${JSON.stringify(snap)}\n\n`);
+    res.write(`event: history\ndata: ${JSON.stringify(db.recentEvents(tenant, 150))}\n\n`);
+    res.write(`event: incidents\ndata: ${JSON.stringify(db.listIncidents(tenant))}\n\n`);
+    const client = { res, tenant };
+    clients.add(client);
     const ping = setInterval(() => { try { res.write(': ping\n\n'); } catch {} }, 15000);
-    req.on('close', () => { clearInterval(ping); clients.delete(res); });
+    req.on('close', () => { clearInterval(ping); clients.delete(client); });
     return;
   }
 
-  // API REST
-  if (p === '/api/health') return json(res, 200, { status: 'ok', clients: clients.size, ...db.stats() });
-  if (p === '/api/events') return json(res, 200, db.recentEvents(Math.min(+url.searchParams.get('limit') || 100, 1000)));
-  if (p === '/api/incidents') return json(res, 200, db.listIncidents());
+  // --- API (authentifiée) ---
+  if (p === '/api/health') return json(res, 200, { status: 'ok', clients: clients.size, tenant, ...db.stats(tenant) });
+  if (p === '/api/events') return json(res, 200, db.recentEvents(tenant, Math.min(+url.searchParams.get('limit') || 100, 1000)));
+  if (p === '/api/incidents') return json(res, 200, db.listIncidents(tenant));
   if (p.startsWith('/api/incidents/') && p.endsWith('/action') && req.method === 'POST') {
-    return handleIncidentAction(req, res, p.slice('/api/incidents/'.length, -'/action'.length));
+    return handleIncidentAction(req, res, p.slice('/api/incidents/'.length, -'/action'.length), user);
   }
   if (p.startsWith('/api/incidents/')) {
-    const id = p.slice('/api/incidents/'.length);
-    const inc = db.getIncident(id);
-    if (!inc) return json(res, 404, { error: 'incident inconnu' });
-    return json(res, 200, { incident: inc, events: db.incidentEvents(id) });
+    const inc = db.getIncident(p.slice('/api/incidents/'.length));
+    if (!inc || inc.tenant !== tenant) return json(res, 404, { error: 'incident inconnu' });
+    return json(res, 200, { incident: inc, events: db.incidentEvents(inc.id) });
   }
-  if (p === '/api/stats') return json(res, 200, db.stats());
+  if (p === '/api/stats') return json(res, 200, db.stats(tenant));
+  if (p === '/api/admin/users') {
+    if (!can(user, 'admin')) return json(res, 403, { error: 'rôle admin requis' });
+    if (req.method === 'POST') {
+      let b; try { b = JSON.parse(await readBody(req)); } catch { return json(res, 400, { error: 'JSON invalide' }); }
+      if (!b.username || !b.password) return json(res, 400, { error: 'username et password requis' });
+      try { return json(res, 201, db.createUser({ ...b, tenant: user.tenant })); }
+      catch { return json(res, 409, { error: 'utilisateur déjà existant' }); }
+    }
+    return json(res, 200, db.listUsers(user.tenant));
+  }
   if (p === '/ingest' && req.method === 'POST') return handleIngest(req, res);
-  if (req.method === 'OPTIONS') { res.writeHead(204, { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'content-type,x-api-key', 'Access-Control-Allow-Methods': 'GET,POST' }); return res.end(); }
 
   serveStatic(req, res);
 });
 
 server.listen(PORT, () => {
   console.log(`\n  ✦ ORION — SOC cosmos`);
-  console.log(`  ✦ http://localhost:${PORT}  ·  API: /api/health /api/events /api/incidents`);
-  console.log(`  ✦ Ingestion : POST /ingest ${API_KEY ? '(clé API requise)' : '(ouvert — définir ORION_API_KEY pour sécuriser)'}`);
-  console.log(`  ✦ Persistance : ${process.env.ORION_DB || 'orion.db'} · simulateur actif\n`);
+  console.log(`  ✦ http://localhost:${PORT}  ·  auth: ${AUTH ? 'ACTIVÉE' : 'désactivée'}  ·  tenant sim: ${SIM_TENANT}`);
+  if (AUTH && db._seededPw) {
+    console.log(`  ✦ Comptes créés (tenant orion-demo, mot de passe « ${db._seededPw} ») :`);
+    console.log(`      admin / analyste / observateur   (rôles : admin · analyst · viewer)`);
+  }
+  console.log(`  ✦ API: /api/health /api/events /api/incidents  ·  Ingestion: POST /ingest\n`);
 });

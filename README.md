@@ -16,9 +16,34 @@ Chaque actif est un corps céleste · chaque flux une trajectoire · chaque mena
 ![MITRE ATT&CK](https://img.shields.io/badge/MITRE-ATT%26CK-c0392b?style=for-the-badge)
 ![Dépendances runtime](https://img.shields.io/badge/d%C3%A9pendances%20runtime-0-3ad6a0?style=for-the-badge)
 
+<br/>
+
+![cybersecurity](https://img.shields.io/badge/cybersecurity-12182b?style=flat-square)
+![SOC](https://img.shields.io/badge/SOC-12182b?style=flat-square)
+![threat-detection](https://img.shields.io/badge/threat--detection-12182b?style=flat-square)
+![SIEM](https://img.shields.io/badge/SIEM-12182b?style=flat-square)
+![threat-intelligence](https://img.shields.io/badge/threat--intelligence-12182b?style=flat-square)
+![WebGL](https://img.shields.io/badge/WebGL-12182b?style=flat-square)
+![data-viz](https://img.shields.io/badge/data--visualization-12182b?style=flat-square)
+![real-time](https://img.shields.io/badge/real--time-12182b?style=flat-square)
+![multi-tenant](https://img.shields.io/badge/multi--tenant-12182b?style=flat-square)
+
 **[Fonctionnalités](#-fonctionnalités) · [Démarrage](#-démarrage-rapide) · [Architecture](#-architecture) · [API](#-intégration--api) · [Aperçu](#-aperçu) · [Roadmap](#-feuille-de-route)**
 
 </div>
+
+---
+
+## 📖 Description
+
+**Orion** est un **SOC (Security Operations Center)** nouvelle génération qui réinvente la
+supervision de sécurité : au lieu de tableaux et de logs, ton réseau devient un **cosmos 3D
+vivant** où chaque actif est un corps céleste et chaque menace une comète. Sous l'interface,
+un vrai moteur opérationnel — ingestion temps réel multi-sources, corrélation d'incidents,
+cartographie **MITRE ATT&CK**, **threat intelligence**, réponse **SOAR**, persistance,
+**authentification / RBAC / multi-tenant** — le tout déployable en **une seule commande**,
+sans aucune dépendance runtime. Conçu pour se poser **par-dessus** ton SIEM/EDR existant et
+y apporter la conscience de situation et le « wow » qu'aucun autre outil n'offre.
 
 ---
 

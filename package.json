@@ -1,0 +1,16 @@
+{
+  "name": "orion-soc",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Orion — un SOC réimaginé en cosmos vivant. Prototype simulation-first, zéro dépendance.",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "puppeteer-core": "^23.11.1"
+  }
+}

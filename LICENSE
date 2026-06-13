@@ -1,0 +1,27 @@
+Orion SOC — Licence Propriétaire
+Copyright (c) 2026 Ilyes Staili. Tous droits réservés.
+
+Ce logiciel et son code source (« le Logiciel ») sont la propriété exclusive de
+Ilyes Staili (« l'Auteur »). Le Logiciel est mis à disposition en source visible
+à des fins d'évaluation, de démonstration et de revue uniquement.
+
+CE QUI EST PERMIS, sans accord écrit préalable :
+  - consulter et étudier le code source ;
+  - exécuter le Logiciel localement à des fins d'évaluation personnelle.
+
+CE QUI EST INTERDIT, sans licence commerciale écrite de l'Auteur :
+  - tout usage en production ou à des fins commerciales ;
+  - la copie, la redistribution, la sous-licence ou la revente, totale ou partielle ;
+  - la création d'œuvres dérivées destinées à être distribuées ;
+  - la suppression ou l'altération des mentions de droit d'auteur.
+
+Pour une licence commerciale, un déploiement entreprise ou un partenariat :
+contacter l'Auteur.
+
+LE LOGICIEL EST FOURNI « EN L'ÉTAT », SANS GARANTIE D'AUCUNE SORTE, EXPRESSE OU
+IMPLICITE. EN AUCUN CAS L'AUTEUR NE POURRA ÊTRE TENU RESPONSABLE DE TOUT DOMMAGE
+DÉCOULANT DE L'UTILISATION DU LOGICIEL.
+
+----------------------------------------------------------------------------------
+Préférer l'open source ? Remplacer le contenu de ce fichier par la licence MIT
+(https://opensource.org/license/mit) et mettre à jour le badge dans le README.

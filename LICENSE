@@ -1,27 +1,27 @@
-Orion SOC — Licence Propriétaire
-Copyright (c) 2026 Ilyes Staili. Tous droits réservés.
+Orion SOC — Proprietary License
+Copyright (c) 2026 Ilyes Staili. All rights reserved.
 
-Ce logiciel et son code source (« le Logiciel ») sont la propriété exclusive de
-Ilyes Staili (« l'Auteur »). Le Logiciel est mis à disposition en source visible
-à des fins d'évaluation, de démonstration et de revue uniquement.
+This software and its source code (the "Software") are the exclusive property of
+Ilyes Staili (the "Author"). The Software is made available in source-available form
+for evaluation, demonstration and review purposes only.
 
-CE QUI EST PERMIS, sans accord écrit préalable :
-  - consulter et étudier le code source ;
-  - exécuter le Logiciel localement à des fins d'évaluation personnelle.
+PERMITTED, without prior written agreement:
+  - viewing and studying the source code;
+  - running the Software locally for personal evaluation.
 
-CE QUI EST INTERDIT, sans licence commerciale écrite de l'Auteur :
-  - tout usage en production ou à des fins commerciales ;
-  - la copie, la redistribution, la sous-licence ou la revente, totale ou partielle ;
-  - la création d'œuvres dérivées destinées à être distribuées ;
-  - la suppression ou l'altération des mentions de droit d'auteur.
+PROHIBITED, without a written commercial license from the Author:
+  - any production or commercial use;
+  - copying, redistribution, sublicensing or resale, in whole or in part;
+  - creating derivative works intended for distribution;
+  - removing or altering the copyright notices.
 
-Pour une licence commerciale, un déploiement entreprise ou un partenariat :
-contacter l'Auteur.
+For a commercial license, an enterprise deployment or a partnership:
+contact the Author.
 
-LE LOGICIEL EST FOURNI « EN L'ÉTAT », SANS GARANTIE D'AUCUNE SORTE, EXPRESSE OU
-IMPLICITE. EN AUCUN CAS L'AUTEUR NE POURRA ÊTRE TENU RESPONSABLE DE TOUT DOMMAGE
-DÉCOULANT DE L'UTILISATION DU LOGICIEL.
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED.
+IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DAMAGES ARISING FROM THE USE OF THE
+SOFTWARE.
 
 ----------------------------------------------------------------------------------
-Préférer l'open source ? Remplacer le contenu de ce fichier par la licence MIT
-(https://opensource.org/license/mit) et mettre à jour le badge dans le README.
+Prefer open source? Replace the contents of this file with the MIT license
+(https://opensource.org/license/mit) and update the badge in the README.

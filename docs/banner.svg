@@ -86,7 +86,7 @@
       <animate attributeName="opacity" values="0.85;1;0.85" dur="4s" repeatCount="indefinite"/>
     </text>
     <text x="0" y="48" font-size="17" font-weight="500" letter-spacing="11" fill="#8ab4ff">SECURITY&#160;&#160;OPERATIONS&#160;&#160;CENTER</text>
-    <text x="0" y="78" font-size="12" letter-spacing="4" fill="#7d88a6">LE RÉSEAU DEVIENT UN COSMOS · CHAQUE MENACE, UNE COMÈTE</text>
+    <text x="0" y="78" font-size="12" letter-spacing="4" fill="#7d88a6">YOUR NETWORK BECOMES A COSMOS · EVERY THREAT, A COMET</text>
   </g>
 
   <rect x="0" y="338" width="1280" height="2" fill="#8ab4ff" opacity="0.5"/>

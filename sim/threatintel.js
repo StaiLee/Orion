@@ -37,7 +37,7 @@ function intelFor(ip) {
   const h = hashStr(ip);
   if (!bad) return { match: false, score: h % 25 };          // bruit de fond faible
   const cats = [CATEGORIES[h % CATEGORIES.length]];
-  if ((h >> 3) % 2) cats.push(CATEGORIES[(h >> 5) % CATEGORIES.length]);
+  if ((h >>> 3) % 2) cats.push(CATEGORIES[(h >>> 5) % CATEGORIES.length]);
   return {
     match: true, score: 70 + (h % 30),
     categories: [...new Set(cats)],
